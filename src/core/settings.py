@@ -1,5 +1,7 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic_settings import BaseSettings
+
 
 class Settings(BaseSettings):
     DB_URL: str = "sqlite:///./insight.db"
@@ -7,6 +9,7 @@ class Settings(BaseSettings):
 
     class Config:
         extra = "ignore"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
