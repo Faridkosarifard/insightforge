@@ -1,5 +1,7 @@
+# Standard library
 from functools import lru_cache
 
+# Third-party (others)
 from pydantic_settings import BaseSettings
 
 

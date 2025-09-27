@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+# Standard library
 from contextlib import contextmanager
 from typing import Generator
 
+# Third-party (others)
+from core.settings import get_settings
+
+# SQLAlchemy
 from sqlalchemy import MetaData
 from sqlalchemy import create_engine
 from sqlalchemy import text
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
-
-from core.settings import get_settings
 
 
 class Base(DeclarativeBase):
@@ -48,8 +51,6 @@ SessionLocal = scoped_session(
 
 def init_db() -> None:
     """Create tables for all mapped models."""
-    from src.api import models as _  # noqa: F401
-
     Base.metadata.create_all(bind=engine)
 
 

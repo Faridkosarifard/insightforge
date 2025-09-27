@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Upload a CSV → EDA → baseline ML → dashboard"
 authors = ["Farid Kosarifard <Kosarifardfarid@gmail.com>"]
 readme = "README.md"
-packages = [{ include = "src" }]
+packages = [{ include = "insightforge", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -36,6 +36,18 @@ target-version = ["py311"]
 profile = "black"
 line_length = 89
 force_single_line = true
+
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "SQLALCHEMY", "INSIGHTFORGE", "FIRSTPARTY"]
+
+known_sqlalchemy = ["sqlalchemy"]
+import_heading_sqlalchemy = "SQLAlchemy"
+
+known_insightforge = ["insightforge"]
+import_heading_insightforge = "Insightforge project"
+
+import_heading_stdlib = "Standard library"
+import_heading_thirdparty = "Third-party (others)"
+import_heading_firstparty = "First-party"
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]
