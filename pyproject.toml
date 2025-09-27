@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "insightforge"
+version = "0.1.0"
+description = "Upload a CSV → EDA → baseline ML → dashboard"
+authors = ["Farid Kosarifard <Kosarifardfarid@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+fastapi = "0.115.0"
+uvicorn = { version = "0.30.6", extras = ["standard"] }
+pandas = "2.2.2"
+numpy = "1.26.4"
+scikit-learn = "1.5.2"
+SQLAlchemy = "2.0.35"
+psycopg2-binary = "2.9.9"
+pydantic = "2.9.2"
+pydantic-settings = "2.6.0"
+python-multipart = "0.0.9"
+joblib = "1.4.2"
+streamlit = "1.38.0"
+requests = "2.32.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2"
+isort = "^5.13"
+black = "^24.8"
+
+[tool.black]
+line-length = 89
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 89
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+
