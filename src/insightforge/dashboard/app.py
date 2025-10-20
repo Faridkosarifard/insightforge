@@ -1,6 +1,5 @@
 # Standard library
 import io
-import json
 import os
 
 # Third-party (others)
