@@ -1,1 +1,1 @@
-"Core config & logging."
+"""Core settings and logging."""

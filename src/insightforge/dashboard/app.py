@@ -1,75 +1,153 @@
-# Standard library
-import io
-import os
+"""Streamlit UI: upload a CSV, run EDA, train a baseline, and predict."""
 
-# Third-party (others)
-import pandas as pd
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+
 import requests
 import streamlit as st
 
-API = os.getenv("API_BASE", "http://localhost:8000")
+API = os.getenv("API_BASE", "http://localhost:8000").rstrip("/")
+TIMEOUT = 60
 
 st.set_page_config(page_title="InsightForge", layout="wide")
-st.title("InsightForge Dashboard")
+st.title("InsightForge")
+st.caption("Upload a CSV, explore it, train a baseline model, and run predictions.")
 
-tab1, tab2, tab3 = st.tabs(["Upload", "EDA", "Train & Predict"])
 
-with tab1:
-    st.subheader("Upload dataset")
+def _format_error(response: requests.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.text
+    detail = payload.get("detail", payload)
+    return str(detail)
+
+
+def list_datasets() -> list[dict[str, Any]]:
+    try:
+        response = requests.get(f"{API}/datasets", timeout=TIMEOUT)
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        st.error(f"Could not reach the API at {API}: {exc}")
+        return []
+    if not isinstance(payload, list):
+        st.error("Unexpected response from /datasets")
+        return []
+    return payload
+
+
+def dataset_label(row: dict[str, Any]) -> str:
+    target = row.get("target") or "no target"
+    return f"{row['id']}: {row['name']} ({target})"
+
+
+try:
+    health = requests.get(f"{API}/health", timeout=5)
+    if health.ok and health.json().get("status") == "ok":
+        st.sidebar.success(f"API connected  ·  {API}")
+    else:
+        st.sidebar.warning(f"API at {API} is not healthy")
+except requests.RequestException:
+    st.sidebar.error(f"Cannot reach the API at {API}")
+
+tab_upload, tab_eda, tab_train = st.tabs(["Upload", "EDA", "Train & Predict"])
+
+with tab_upload:
+    st.subheader("Upload a dataset")
     name = st.text_input("Dataset name", "iris")
-    target = st.text_input("Target column (optional)", "")
-    file = st.file_uploader("Upload CSV", type=["csv"])
-    if st.button("Upload") and file:
-        files = {"file": (file.name, file.getvalue(), "text/csv")}
-        params = {"name": name}
-        if target:
-            params["target"] = target
-        r = requests.post(f"{API}/datasets", files=files, params=params)
-        st.write(r.status_code)
-        st.json(r.json() if r.ok else r.text)
-
-with tab2:
-    st.subheader("Run EDA")
-    r = requests.get(f"{API}/datasets")
-    ds = r.json() if r.ok else []
-    options = {f'{d["id"]}: {d["name"]}': d["id"] for d in ds}
-    choice = st.selectbox("Choose dataset", list(options.keys())) if options else None
-    if choice and st.button("Run EDA"):
-        ds_id = options[choice]
-        r = requests.post(f"{API}/eda/{ds_id}")
-        if r.ok:
-            rep = r.json().get("report", r.json().get("report_json"))
-            st.json(rep)
+    target = st.text_input("Target column (optional)", "species")
+    uploaded = st.file_uploader("CSV file", type=["csv"])
+    if st.button("Upload", type="primary") and uploaded is not None:
+        files = {"file": (uploaded.name, uploaded.getvalue(), "text/csv")}
+        params: dict[str, str] = {"name": name}
+        if target.strip():
+            params["target"] = target.strip()
+        try:
+            response = requests.post(f"{API}/datasets", files=files, params=params, timeout=TIMEOUT)
+        except requests.RequestException as exc:
+            st.error(f"Upload failed: {exc}")
         else:
-            st.error(r.text)
+            if response.ok:
+                st.success("Dataset stored")
+                st.json(response.json())
+            else:
+                st.error(_format_error(response))
 
-with tab3:
-    st.subheader("Train & Predict")
-    r = requests.get(f"{API}/datasets")
-    ds = r.json() if r.ok else []
-    options = {f'{d["id"]}: {d["name"]}': d["id"] for d in ds}
-    choice = (
-        st.selectbox("Dataset", list(options.keys()), key="train") if options else None
+with tab_eda:
+    st.subheader("Exploratory analysis")
+    datasets = list_datasets()
+    options = {dataset_label(row): row["id"] for row in datasets}
+    choice = st.selectbox("Dataset", list(options.keys()) if options else ["No datasets yet"])
+    if options and choice in options and st.button("Run EDA", type="primary"):
+        dataset_id = options[choice]
+        try:
+            response = requests.post(f"{API}/eda/{dataset_id}", timeout=TIMEOUT)
+        except requests.RequestException as exc:
+            st.error(f"EDA failed: {exc}")
+        else:
+            if response.ok:
+                body = response.json()
+                st.json(body.get("report_json", body.get("report", body)))
+            else:
+                st.error(_format_error(response))
+
+with tab_train:
+    st.subheader("Train a baseline and score new rows")
+    datasets = list_datasets()
+    options = {dataset_label(row): row["id"] for row in datasets}
+    choice = st.selectbox(
+        "Dataset",
+        list(options.keys()) if options else ["No datasets yet"],
+        key="train_dataset",
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if choice and st.button("Train baseline model"):
-            ds_id = options[choice]
-            r = requests.post(f"{API}/train/{ds_id}")
-            st.json(r.json() if r.ok else r.text)
-
-    with col2:
-        st.write("Predict")
-        example = '[{"sepal_length":5.1,"sepal_width":3.5,"petal_length":1.4,"petal_width":0.2}]'
-        raw = st.text_area("JSON rows", value=example, height=150)
-        if choice and st.button("Send predict"):
-            ds_id = options[choice]
+    col_train, col_predict = st.columns(2)
+    with col_train:
+        if options and choice in options and st.button("Train baseline model", type="primary"):
+            dataset_id = options[choice]
             try:
-                rows = pd.read_json(io.StringIO(raw))
-                r = requests.post(
-                    f"{API}/predict/{ds_id}", json=rows.to_dict(orient="records")
+                response = requests.post(
+                    f"{API}/train/{dataset_id}",
+                    params={"n_estimators": 200},
+                    timeout=TIMEOUT,
                 )
-                st.json(r.json() if r.ok else r.text)
-            except Exception as e:
-                st.error(str(e))
+            except requests.RequestException as exc:
+                st.error(f"Training failed: {exc}")
+            else:
+                if response.ok:
+                    st.success("Model trained")
+                    st.json(response.json())
+                else:
+                    st.error(_format_error(response))
+
+    with col_predict:
+        st.write("Predict")
+        example = '[{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}]'
+        raw = st.text_area("JSON rows (array of objects)", value=example, height=160)
+        if options and choice in options and st.button("Send predict"):
+            dataset_id = options[choice]
+            try:
+                rows = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                st.error(f"Invalid JSON: {exc}")
+            else:
+                if not isinstance(rows, list):
+                    st.error("JSON must be an array of row objects")
+                else:
+                    try:
+                        response = requests.post(
+                            f"{API}/predict/{dataset_id}",
+                            json=rows,
+                            timeout=TIMEOUT,
+                        )
+                    except requests.RequestException as exc:
+                        st.error(f"Predict failed: {exc}")
+                    else:
+                        if response.ok:
+                            st.json(response.json())
+                        else:
+                            st.error(_format_error(response))

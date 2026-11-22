@@ -1,57 +1,117 @@
-[tool.poetry]
-name = "insightforge"
-version = "0.1.0"
-description = "Upload a CSV → EDA → baseline ML → dashboard"
-authors = ["Farid Kosarifard <Kosarifardfarid@gmail.com>"]
-readme = "README.md"
-packages = [{ include = "insightforge", from = "src" }]
-
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-fastapi = "0.115.0"
-uvicorn = { version = "0.30.6", extras = ["standard"] }
-pandas = "2.2.2"
-numpy = "1.26.4"
-scikit-learn = "1.5.2"
-SQLAlchemy = "2.0.35"
-psycopg2-binary = "2.9.9"
-pydantic = "2.9.2"
-pydantic-settings = "2.6.0"
-python-multipart = "0.0.9"
-joblib = "1.4.2"
-streamlit = "1.38.0"
-requests = "2.32.3"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.2"
-isort = "^5.13"
-black = "^24.8"
-flake8 = "^7.3.0"
-
-[tool.black]
-line-length = 89
-target-version = ["py311"]
-
-[tool.isort]
-profile = "black"
-line_length = 89
-force_single_line = true
-
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "SQLALCHEMY", "SKLEARN" ,"INSIGHTFORGE", "FIRSTPARTY"]
-
-known_sqlalchemy = ["sqlalchemy"]
-import_heading_sqlalchemy = "SQLAlchemy"
-
-known_sklearn = ["sklearn"]
-import_heading_sklearn = "Scikit-Learn"
-
-known_insightforge = ["insightforge"]
-import_heading_insightforge = "Insightforge project"
-
-import_heading_stdlib = "Standard library"
-import_heading_thirdparty = "Third-party (others)"
-import_heading_firstparty = "First-party"
-
 [build-system]
-requires = ["poetry-core>=1.8.0"]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
 
+[project]
+name = "insightforge"
+dynamic = ["version"]
+description = "Upload a CSV, run exploratory analysis, train a baseline model, and score new rows."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Farid Kosarifard" }]
+maintainers = [{ name = "Farid Kosarifard" }]
+keywords = ["fastapi", "streamlit", "automl", "eda", "machine-learning", "data-engineering"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.32",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "scikit-learn>=1.5",
+    "sqlalchemy>=2.0.35,<3",
+    "psycopg2-binary>=2.9.9",
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.6,<3",
+    "python-multipart>=0.0.9",
+    "joblib>=1.4",
+    "streamlit>=1.38",
+    "requests>=2.32",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pandas-stubs>=2.2",
+    "types-requests>=2.32",
+]
+
+[project.urls]
+Homepage = "https://github.com/Faridkosarifard/insightforge"
+Repository = "https://github.com/Faridkosarifard/insightforge"
+Issues = "https://github.com/Faridkosarifard/insightforge/issues"
+Changelog = "https://github.com/Faridkosarifard/insightforge/blob/main/CHANGELOG.rst"
+
+[tool.hatch.version]
+path = "src/insightforge/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/insightforge"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/insightforge", "tests", "docs", "data", "README.md", "CHANGELOG.rst", "CONTRIBUTING.rst", "LICENSE"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "PTH", "N", "C4", "PL"]
+ignore = ["PLR0913", "PLR0917", "PLR2004", "PLR0912", "PLR0915", "PLC0415"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR2004"]
+"src/insightforge/dashboard/app.py" = ["T201"]
+"src/insightforge/api/main.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+packages = ["insightforge"]
+
+[[tool.mypy.overrides]]
+module = [
+    "sklearn",
+    "sklearn.*",
+    "joblib",
+    "joblib.*",
+    "streamlit",
+    "streamlit.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["insightforge"]
+branch = true
+omit = ["*/insightforge/dashboard/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 90
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

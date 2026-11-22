@@ -1,1 +1,0 @@
-"Utilities (DB manager, helpers)."
